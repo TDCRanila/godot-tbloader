@@ -9,6 +9,7 @@
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/area3d.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 
 #include <map_parser.h>
 #include <geo_generator.h>
@@ -41,6 +42,7 @@ class Builder
 public:
 	TBLoader* m_loader;
 	std::shared_ptr<LMMapData> m_map;
+	Dictionary m_loaded_map_textures; // Texture Name(const char*) - Ref<Texture2D>
 
 public:
 	Builder(TBLoader* loader);
@@ -64,12 +66,14 @@ protected:
 	Vector3 lm_transform(const vec3& v);
 
 	void add_collider_from_mesh(Node3D* area, Ref<ArrayMesh>& mesh, ColliderShape colshape);
-	Ref<ArrayMesh> create_mesh_from_surface(LMSurface& surf);
-	void build_texture_mesh(int idx, const char* name, LMEntity& ent, Node3D* parent, ColliderType coltype, ColliderShape colshape);
+	void add_surface_to_mesh(Ref<ArrayMesh>& mesh, LMSurface& surf);
+	MeshInstance3D* build_entity_mesh(int idx, LMEntity& ent, Node3D* parent, ColliderType coltype, ColliderShape colshape);
 
 protected:
-	static String texture_path(const char* name);
-  static String material_path(const char* name);
-	static Ref<Texture2D> texture_from_name(const char* name);
+	void load_and_cache_map_textures();
+
+	static String texture_path(const char* name, const char* extension);
+	static String material_path(const char* name);
+	Ref<Texture2D> texture_from_name(const char* name);
 	static Ref<Material> material_from_name(const char* name);
 };
