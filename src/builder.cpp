@@ -24,17 +24,15 @@ void Builder::load_map(const String& path)
 {
 	UtilityFunctions::print("Building map ", path);
 
-	File f;
-	if (!f.file_exists(path)) {
+	if (!FileAccess::file_exists(path)) {
 		UtilityFunctions::printerr("Map file does not exist!");
 		return;
 	}
 
 	// Parse the map from the file
-	f.open(path, File::READ);
+	Ref<FileAccess> f = FileAccess::open(path, FileAccess::ModeFlags::READ);
 	LMMapParser parser(m_map);
 	parser.load_from_godot_file(f);
-	f.close();
 
 	load_and_cache_map_textures();
 
@@ -437,6 +435,7 @@ MeshInstance3D* Builder::build_entity_mesh(int idx, LMEntity& ent, Node3D* paren
 
 	// Create mesh
 	Ref<ArrayMesh> mesh = memnew(ArrayMesh());
+	Ref<ArrayMesh> collision_mesh = memnew(ArrayMesh());
 
 	// Give mesh to mesh instance
 	mesh_instance->set_mesh(mesh);
@@ -446,6 +445,11 @@ MeshInstance3D* Builder::build_entity_mesh(int idx, LMEntity& ent, Node3D* paren
 
 		// Create material
 		Ref<Material> material;
+
+		// Skip processing a surface when it's using the skip material
+		if (tex.name == m_loader->get_skip_texture_name()) {
+			continue;
+		}
 
 		// Attempt to load material
 		material = material_from_name(tex.name);
@@ -482,7 +486,15 @@ MeshInstance3D* Builder::build_entity_mesh(int idx, LMEntity& ent, Node3D* paren
 				continue;
 			}
 
-			// Add surface to mesh
+			// Add surface to collision mesh
+			add_surface_to_mesh(collision_mesh, surf);
+
+			// Skip if the texture specifies that we only want collision (invisible walls)
+			if (tex.name == m_loader->get_clip_texture_name()) {
+				continue;
+			}
+
+			// Add surface to visual mesh
 			add_surface_to_mesh(mesh, surf);
 
 			// Give mesh material
@@ -501,14 +513,15 @@ MeshInstance3D* Builder::build_entity_mesh(int idx, LMEntity& ent, Node3D* paren
 	// Create collisions if needed
 	switch (coltype) {
 	case ColliderType::Mesh:
-		add_collider_from_mesh(parent, mesh, colshape);
+		add_collider_from_mesh(parent, collision_mesh, colshape);
 		break;
 
 	case ColliderType::Static:
-		switch (colshape) {
-		case ColliderShape::Convex: mesh_instance->create_multiple_convex_collisions(); break;
-		case ColliderShape::Concave: mesh_instance->create_trimesh_collision(); break;
-		}
+		StaticBody3D* static_body = memnew(StaticBody3D());
+		static_body->set_name(String(mesh_instance->get_name()) + "_col");
+		parent->add_child(static_body, true);
+		static_body->set_owner(m_loader->get_owner());
+		add_collider_from_mesh(static_body, collision_mesh, colshape);
 		break;
 	}
 
@@ -522,7 +535,7 @@ void Builder::load_and_cache_map_textures()
 	// Setup a texture extension list that both Trenchbroom and Godot support
 	constexpr int num_extensions = 9;
 	constexpr const char* supported_extensions[num_extensions] = { "png", "dds", "tga", "jpg", "jpeg", "bmp", "webp", "exr", "hdr" };
-	
+
 	// Attempt to load and cache textures used by the map
 	auto resource_loader = ResourceLoader::get_singleton();
 	String tex_path;
@@ -541,7 +554,7 @@ void Builder::load_and_cache_map_textures()
 			}
 		}
 
-		if (!has_loaded_texture) {
+		if (!has_loaded_texture && strcmp(tex.name, "__TB_empty") != 0) {
 			UtilityFunctions::printerr("Texture cannot be found or is unsupported! - ", "res://textures/", tex.name);
 		}
 	}
@@ -557,11 +570,9 @@ String Builder::material_path(const char* name)
 	auto root_path = String("res://textures/") + name;
 	String material_path;
 
-	File f;
-
-	if (f.file_exists(root_path + ".material")) {
+	if (FileAccess::file_exists(root_path + ".material")) {
 		material_path = root_path + ".material";
-	} else if (f.file_exists(root_path + ".tres")) {
+	} else if (FileAccess::file_exists(root_path + ".tres")) {
 		material_path = root_path + ".tres";
 	}
 
@@ -570,6 +581,9 @@ String Builder::material_path(const char* name)
 
 Ref<Texture2D> Builder::texture_from_name(const char* name)
 {
+	if (!m_loaded_map_textures.has(name)) {
+		return nullptr;
+	}
 	return VariantCaster<Ref<Texture2D>>::cast(m_loaded_map_textures[name]);
 }
 
