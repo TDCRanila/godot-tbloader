@@ -2,6 +2,15 @@
 entry_symbol = "tbloader_init"
 
 [libraries]
-windows.64 = "bin/tbloader.windows.x86_64.dll"
-linux.64 = "bin/libtbloader.linux.x86_64.so"
-macos.64 = "bin/libtbloader.macos.universal.dylib"
+macos.debug             = "bin/libtbloader.macos.debug.framework"
+macos.release           = "bin/libtbloader.macos.release.framework"
+windows.debug.x86_32    = "bin/tbloader.windows.debug.x86_32.dll"
+windows.release.x86_32  = "bin/tbloader.windows.release.x86_32.dll"
+windows.debug.x86_64    = "bin/tbloader.windows.debug.x86_64.dll"
+windows.release.x86_64  = "bin/tbloader.windows.release.x86_64.dll"
+linux.debug.x86_64      = "bin/libtbloader.linux.debug.x86_64.so"
+linux.release.x86_64    = "bin/libtbloader.linux.release.x86_64.so"
+linux.debug.arm64       = "bin/libtbloader.linux.debug.arm64.so"
+linux.release.arm64     = "bin/libtbloader.linux.release.arm64.so"
+linux.debug.rv64        = "bin/libtbloader.linux.debug.rv64.so"
+linux.release.rv64      = "bin/libtbloader.linux.release.rv64.so"
